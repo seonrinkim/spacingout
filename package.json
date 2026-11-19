@@ -1,0 +1,20 @@
+{
+  "name": "spacingout",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "웹캠 기반 집중 이탈 포착 인터랙티브 설치 작업",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "postinstall": "node scripts/setup.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^1.2.3"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}

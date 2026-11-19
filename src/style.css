@@ -1,0 +1,251 @@
+/* ── 작품 스타일: 여기 변수만 바꾸면 된다 ───────────────────────── */
+:root {
+  /* 배경 */
+  --bg-color: #000;
+  --bg-fit: cover; /* cover | contain */
+
+  /* 타임코드 */
+  --tc-font: 'SF Mono', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
+  --tc-size: clamp(11px, 0.9vw, 18px);
+  --tc-color: #fff;
+  --tc-opacity: 0.9;
+  --tc-weight: 400;
+  --tc-letter-spacing: 0.06em;
+  --tc-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+  --tc-fade-in: 1200ms; /* config.json timecode.fadeIn 으로 덮어씀 */
+  --tc-fade-out: 2000ms; /* config.json timecode.fadeOut 으로 덮어씀 */
+
+  /* 프로브 (크기·색·불투명도는 config.json probe.* 로 조정) */
+  --probe-font: var(--tc-font);
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-color);
+}
+body {
+  cursor: none;
+  user-select: none;
+}
+body.debug {
+  cursor: default;
+}
+
+#bg {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: var(--bg-fit);
+  background: var(--bg-color);
+}
+
+#probe-layer,
+#timecode-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.probe {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-family: var(--probe-font);
+  line-height: 1;
+  white-space: nowrap;
+  transition: opacity 30ms linear;
+}
+.probe-dot {
+  border-radius: 50%;
+}
+
+.tc {
+  position: absolute;
+  font-family: var(--tc-font);
+  font-size: var(--tc-size);
+  font-weight: var(--tc-weight);
+  color: var(--tc-color);
+  letter-spacing: var(--tc-letter-spacing);
+  text-shadow: var(--tc-shadow);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--tc-fade-in) ease;
+}
+.tc.show {
+  opacity: var(--tc-opacity);
+}
+.tc.hide {
+  opacity: 0;
+  transition: opacity var(--tc-fade-out) ease;
+}
+
+/* 카메라 입력: 화면에 보이지 않게(display:none 이면 일부 브라우저가 프레임을 멈춤) */
+#cam {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 2px;
+  height: 2px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── 디버그 ───────────────────────────────────────────── */
+#gaze-marker,
+#probe-marker {
+  position: fixed;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border: 1.5px solid rgba(0, 255, 180, 0.8);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 5;
+  transition: left 60ms linear, top 60ms linear;
+}
+#gaze-marker.fix {
+  border-color: #ffb300;
+  box-shadow: 0 0 0 4px rgba(255, 179, 0, 0.2);
+}
+#probe-marker {
+  border-color: #ff4081;
+  border-style: dashed;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+}
+[hidden] {
+  display: none !important;
+}
+
+#debug {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  font: 11px/1.4 ui-monospace, Menlo, monospace;
+  color: #ddd;
+}
+#debug > div {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  overflow-y: auto;
+  pointer-events: auto;
+  background: rgba(10, 10, 14, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+.dbg-left {
+  left: 8px;
+  width: 340px;
+}
+.dbg-right {
+  right: 8px;
+  width: 300px;
+}
+.dbg-head {
+  color: #fff;
+  margin-bottom: 6px;
+}
+.dbg-cam {
+  width: 320px;
+  height: 240px;
+  background: #000;
+  display: block;
+}
+.dbg-status {
+  margin: 6px 0;
+  padding: 4px 6px;
+  border-left: 4px solid #666;
+  white-space: pre-wrap;
+  font: inherit;
+}
+.dbg-graph {
+  margin-bottom: 4px;
+}
+.dbg-glabel {
+  color: #aaa;
+}
+.dbg-glabel.hot {
+  color: #ffb300;
+}
+.dbg-graph canvas {
+  display: block;
+  width: 320px;
+}
+.dbg-sub {
+  margin-top: 8px;
+  color: #fff;
+}
+.dbg-log div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #999;
+}
+.dbg-log .l-leave {
+  color: #ff5252;
+}
+.dbg-log .l-probe,
+.dbg-log .l-probe-result {
+  color: #ff80ab;
+}
+.dbg-log .l-return {
+  color: #40c4ff;
+}
+.dbg-log .l-state {
+  color: #c5e1a5;
+}
+.dbg-log .l-sys {
+  color: #777;
+}
+.dbg-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.dbg-buttons button {
+  font: inherit;
+  color: #eee;
+  background: #2a2a33;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+}
+.dbg-buttons button:hover {
+  background: #3a3a46;
+}
+.dbg-tunables summary {
+  color: #fff;
+  cursor: pointer;
+  margin: 6px 0 2px;
+}
+.dbg-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 44px;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0;
+}
+.dbg-row input[type='range'] {
+  width: 100%;
+}
+.dbg-row em {
+  font-style: normal;
+  text-align: right;
+  color: #ffb300;
+}
+.dbg-row select,
+.dbg-row input[type='checkbox'] {
+  justify-self: start;
+}

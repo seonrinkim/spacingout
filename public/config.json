@@ -1,0 +1,99 @@
+{
+  "fps": 30,
+  "timecodeOrigin": "arrival",
+  "countAwayAsLeave": true,
+  "sessionStart": 1,
+  "sessionEnd": 5,
+  "presenceGapTolerance": 0.3,
+  "t0AtFirstDetection": true,
+  "calibrationDuration": 15,
+  "fixationThreshold": 4,
+  "dispersionWindow": 3,
+  "fixationZ": -0.8,
+  "fixationDispersionFloor": 0.008,
+  "fixationDispersionCap": 0.8,
+  "fixationDispersionDefault": 0.03,
+  "fixationHysteresis": 1.35,
+  "saccadeAmplitude": 0.1,
+  "saccadeWindow": 0.15,
+  "probeCooldown": 8,
+  "responseWindow": 1.5,
+  "missesToConfirm": 1,
+  "responseBreakRadius": 0.07,
+  "responseHeadDeg": 4,
+  "responseOnFixationBreak": true,
+  "requireProbeDirection": false,
+  "directionCosMin": 0.3,
+  "probeCentroidWindow": 1,
+  "probeInLeft": true,
+  "returnSaccadeAmplitude": 0.12,
+  "leftMinHold": 1,
+  "returnHold": 0.5,
+  "yawLimit": 25,
+  "pitchLimit": 25,
+  "awayDuration": 2,
+  "awayHysteresisDeg": 5,
+  "awayReturnDuration": 1,
+  "awayRelativeToBaseline": true,
+  "missingCountsAsAway": true,
+  "blinkOn": 0.5,
+  "blinkOff": 0.35,
+  "blinkWindow": 60,
+  "minFaceSize": 0.08,
+  "maxJump": 0.25,
+  "numFaces": 1,
+  "minFaceDetectionConfidence": 0.6,
+  "minFacePresenceConfidence": 0.6,
+  "minTrackingConfidence": 0.6,
+  "gaze": {
+    "eyeGainX": 3,
+    "eyeGainY": 3,
+    "headGainX": 1,
+    "headGainY": 1,
+    "flipX": false,
+    "flipY": false
+  },
+  "smoothing": {
+    "gazeMinCutoff": 1.2,
+    "gazeBeta": 0.8,
+    "headMinCutoff": 1,
+    "headBeta": 0.3,
+    "movementTau": 1
+  },
+  "probe": {
+    "type": "digits",
+    "size": 11,
+    "duration": 300,
+    "blinks": 1,
+    "count": 3,
+    "opacity": 0.55,
+    "color": "#ffffff",
+    "minDistance": 0.45,
+    "margin": 0.06
+  },
+  "timecode": {
+    "fadeIn": 1200,
+    "fadeOut": 2000,
+    "maxVisible": 12,
+    "margin": 0.08
+  },
+  "video": {
+    "src": "assets/base.mp4"
+  },
+  "model": {
+    "path": "models/face_landmarker.task",
+    "wasm": "wasm",
+    "delegate": "GPU"
+  },
+  "camera": {
+    "width": 640,
+    "height": 480,
+    "fps": 30,
+    "deviceId": ""
+  },
+  "exhibit": {
+    "autoFullscreen": true,
+    "frameTimeout": 4,
+    "reloadOnFatal": true
+  }
+}

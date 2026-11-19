@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>spacing out</title>
+  </head>
+  <body>
+    <!-- 1. 배경 영상 -->
+    <video id="bg" muted autoplay loop playsinline preload="auto"></video>
+    <!-- 2. 프로브 레이어 -->
+    <div id="probe-layer"></div>
+    <!-- 3. 타임코드 레이어 -->
+    <div id="timecode-layer"></div>
+    <!-- 디버그 전용 표시 -->
+    <div id="gaze-marker" hidden></div>
+    <div id="probe-marker" hidden></div>
+    <!-- 카메라 입력(보이지 않음, 저장/전송하지 않음) -->
+    <video id="cam" muted playsinline></video>
+    <!-- 4. 디버그 오버레이 -->
+    <div id="debug" hidden></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
