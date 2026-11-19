@@ -1,16 +1,15 @@
-// 세션 이벤트 기록. 이미지·얼굴 데이터는 남기지 않고 시간과 상태 이벤트만 저장한다.
+// 세션 이벤트 기록. 이미지·얼굴 데이터는 남기지 않고 번호, 시간, 좌표, 상태 이벤트만 저장한다.
+// 관객이 여러 명이면 세션도 동시에 여러 개 열린다.
 import { downloadJSON } from './config.js';
 
 const LS_KEY = 'spacingout.log';
-const MAX_SESSIONS = 300;
-const MAX_SYSTEM = 200;
+const MAX_SESSIONS = 500;
+const MAX_SYSTEM = 300;
 
 export class Logger {
   constructor() {
     this.sessions = [];
     this.systemEvents = [];
-    this.current = null;
-    this.currentT0 = null;
     this.listeners = new Set();
     try {
       const saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
@@ -30,42 +29,39 @@ export class Logger {
     return new Date(performance.timeOrigin + t * 1000).toISOString();
   }
 
-  // 성능 시계(초) → { at: ISO 시각, rel: t0 기준 초 }
-  stamp(t) {
-    return { at: this.wall(t), rel: this.currentT0 == null ? null : +(t - this.currentT0).toFixed(3) };
-  }
-
   emit(e) {
     for (const fn of this.listeners) {
       try { fn(e); } catch { /* noop */ }
     }
   }
 
-  startSession(t0, t) {
+  // 반환: 세션 로그 핸들 { id, event, stamp, end }
+  openSession({ t0, t, number, track }) {
     const d = new Date(performance.timeOrigin + t0 * 1000);
-    const id = `S${d.toISOString().replace(/[-:T]/g, '').slice(0, 14)}-${Math.random().toString(36).slice(2, 6)}`;
-    this.currentT0 = t0;
-    this.current = { id, t0: this.wall(t0), events: [] };
-    this.sessions.push(this.current);
+    const id = `S${d.toISOString().replace(/[-:T]/g, '').slice(0, 14)}-${String(number).padStart(5, '0')}`;
+    const rec = { id, number, t0: this.wall(t0), events: [] };
+    this.sessions.push(rec);
     if (this.sessions.length > MAX_SESSIONS) this.sessions.splice(0, this.sessions.length - MAX_SESSIONS);
-    this.event('session-start', { sessionId: id }, t);
-  }
-
-  event(type, data = {}, t = performance.now() / 1000) {
-    const e = { type, ...this.stamp(t), ...data };
-    if (this.current) this.current.events.push(e);
-    this.emit(e);
-    this.schedulePersist();
-    return e;
-  }
-
-  endSession(t, lastSeen) {
-    if (!this.current) return;
-    this.event('session-end', lastSeen != null ? { lastSeen: this.stamp(lastSeen) } : {}, t);
-    this.current.end = this.wall(t);
-    this.current = null;
-    this.currentT0 = null;
-    this.persist();
+    const stamp = (tt) => ({ at: this.wall(tt), rel: +(tt - t0).toFixed(3) });
+    const handle = {
+      id,
+      number,
+      stamp,
+      event: (type, data = {}, tt = performance.now() / 1000) => {
+        const e = { type, number, ...stamp(tt), ...data };
+        rec.events.push(e);
+        this.emit(e);
+        this.schedulePersist();
+        return e;
+      },
+      end: (tt, lastSeen) => {
+        handle.event('session-end', lastSeen != null ? { lastSeen: stamp(lastSeen) } : {}, tt);
+        rec.end = this.wall(tt);
+        this.persist();
+      },
+    };
+    handle.event('session-start', { sessionId: id, track }, t);
+    return handle;
   }
 
   system(type, data = {}) {
@@ -82,13 +78,14 @@ export class Logger {
   }
 
   persist() {
+    const write = () => localStorage.setItem(LS_KEY, JSON.stringify({ sessions: this.sessions, system: this.systemEvents }));
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ sessions: this.sessions, system: this.systemEvents }));
+      write();
     } catch {
       // 용량 초과 시 오래된 세션부터 버린다
       if (this.sessions.length > 10) {
         this.sessions.splice(0, Math.ceil(this.sessions.length / 2));
-        try { localStorage.setItem(LS_KEY, JSON.stringify({ sessions: this.sessions, system: this.systemEvents })); } catch { /* noop */ }
+        try { write(); } catch { /* noop */ }
       }
     }
   }
@@ -99,7 +96,7 @@ export class Logger {
   }
 
   clear() {
-    this.sessions = this.current ? [this.current] : [];
+    this.sessions = this.sessions.filter((s) => !s.end); // 진행 중인 세션은 남긴다
     this.systemEvents = [];
     this.persist();
   }

@@ -1,4 +1,6 @@
-// 상태 머신: CALIBRATING → WATCHING → DRIFTING → LEFT → (RETURNED → WATCHING), 별도로 AWAY
+// 관객 한 명의 상태 머신:
+//   CALIBRATING → WATCHING → DRIFTING → LEFT → (RETURNED → WATCHING), 별도로 AWAY
+// 프로브는 전역 스케줄러(ProbeScheduler)가 띄우고, 각 관객의 머신이 각자 반응을 판정한다.
 import { formatTimecode } from './timecode.js';
 
 export const S = {
@@ -12,12 +14,13 @@ export const S = {
 };
 
 export class AttentionMachine {
-  constructor(cfg, { probe, timecodes, logger, processor }) {
+  // log: 세션 로그 { event(type, data, t), stamp(t) }
+  // onLeave({ leaveT, posT, timecode, cause, elapsed })
+  constructor(cfg, { log, processor, onLeave }) {
     this.cfg = cfg;
-    this.probe = probe;
-    this.timecodes = timecodes;
-    this.logger = logger;
+    this.log = log;
     this.processor = processor;
+    this.onLeave = onLeave;
     this.reset();
   }
 
@@ -26,7 +29,6 @@ export class AttentionMachine {
     this.stateSince = 0;
     this.t0 = null;
     this.pending = null;
-    this.lastProbeT = -Infinity;
     this.misses = 0;
     this.driftFixStart = null;
     this.lastReturnT = null;
@@ -42,7 +44,7 @@ export class AttentionMachine {
     const prev = this.state;
     this.state = s;
     this.stateSince = t;
-    this.logger.event('state', { from: prev, to: s }, t);
+    this.log.event('state', { from: prev, to: s }, t);
   }
 
   start(t0, t) {
@@ -54,7 +56,7 @@ export class AttentionMachine {
 
   finishCalibration(t) {
     if (this.state !== S.CALIBRATING) return;
-    this.logger.event('calibrated', {}, t);
+    this.log.event('calibrated', {}, t);
     this.setState(S.WATCHING, t);
   }
 
@@ -113,23 +115,13 @@ export class AttentionMachine {
         break;
 
       case S.DRIFTING:
-        if (!this.pending && f.valid) {
-          if (!f.fixating) {
-            this.setState(S.WATCHING, t);
-          } else if (t - this.lastProbeT >= c.probeCooldown) {
-            this.fireProbe(f, t);
-          }
-        }
+        if (!this.pending && f.valid && !f.fixating) this.setState(S.WATCHING, t);
         break;
 
       case S.LEFT:
         if (!this.pending && f.valid) {
           const moved = !f.fixating || (f.saccade && f.saccade.amp >= c.returnSaccadeAmplitude);
-          if (moved && t - this.stateSince >= c.leftMinHold) {
-            this.doReturn(t, 'gaze');
-          } else if (c.probeInLeft && t - this.lastProbeT >= c.probeCooldown) {
-            this.fireProbe(f, t);
-          }
+          if (moved && t - this.stateSince >= c.leftMinHold) this.doReturn(t, 'gaze');
         }
         break;
 
@@ -143,11 +135,33 @@ export class AttentionMachine {
     }
   }
 
-  fireProbe(f, t) {
-    const c = this.cfg;
-    const centroid = this.processor.gazeCentroid(t, c.probeCentroidWindow) || { x: f.gazeX, y: f.gazeY };
-    const pos = this.probe.show(centroid);
-    this.lastProbeT = t;
+  // ── 프로브 (전역 스케줄러와의 약속) ──────────────────────────
+  // 이 관객이 프로브를 원하는가
+  wantsProbe(t) {
+    if (this.pending || !this.isProbeEligible(t)) return false;
+    if (this.state === S.DRIFTING) return true;
+    return this.state === S.LEFT && this.cfg.probeInLeft && t - this.stateSince >= this.cfg.leftMinHold;
+  }
+
+  // 프로브가 뜨면 판정에 참여할 수 있는가
+  isProbeEligible(t) {
+    return (
+      !this.pending &&
+      !!this.lastFrame &&
+      this.lastValidT != null &&
+      t - this.lastValidT < 0.5 &&
+      [S.WATCHING, S.DRIFTING, S.LEFT, S.RETURNED].includes(this.state)
+    );
+  }
+
+  gazeCentroid(t) {
+    const f = this.lastFrame;
+    return this.processor.gazeCentroid(t, this.cfg.probeCentroidWindow) || (f ? { x: f.gazeX, y: f.gazeY } : null);
+  }
+
+  beginProbe(pos, t) {
+    const f = this.lastFrame;
+    const centroid = this.gazeCentroid(t);
     this.pending = {
       t,
       pos,
@@ -157,14 +171,7 @@ export class AttentionMachine {
       pitch0: f.pitch,
       state: this.state,
     };
-    this.logger.event('probe', { x: +pos.x.toFixed(3), y: +pos.y.toFixed(3), state: this.state }, t);
-  }
-
-  // 디버그용 수동 프로브
-  forceProbe(t) {
-    if (this.pending || !this.lastFrame || this.state === S.IDLE || this.state === S.CALIBRATING || this.state === S.AWAY) return false;
-    this.fireProbe(this.lastFrame, t);
-    return true;
+    this.log.event('probe', { x: +pos.x.toFixed(3), y: +pos.y.toFixed(3), state: this.state }, t);
   }
 
   evaluateProbe(f, t) {
@@ -184,20 +191,26 @@ export class AttentionMachine {
     }
     if (how) {
       this.pending = null;
-      this.misses = 0;
-      this.logger.event('probe-result', { result: 'response', how, latency: +(t - p.t).toFixed(3) }, t);
+      this.log.event('probe-result', { result: 'response', how, latency: +(t - p.t).toFixed(3), stateAtProbe: p.state }, t);
       this.processor.breakFixation(t);
+      if (p.state === S.WATCHING) return; // WATCHING 관객은 기록만
+      this.misses = 0;
       if (this.state === S.DRIFTING) this.setState(S.WATCHING, t);
       else if (this.state === S.LEFT) this.doReturn(t, 'probe');
       return;
     }
     if (t - p.t >= c.responseWindow) {
       this.pending = null;
-      this.misses++;
-      this.logger.event('probe-result', { result: 'miss', misses: this.misses }, t);
-      if (this.state === S.DRIFTING && this.misses >= c.missesToConfirm) {
-        this.recordLeave(this.driftFixStart ?? p.t, t, 'probe-miss');
-        this.setState(S.LEFT, t);
+      if (p.state === S.DRIFTING && this.state === S.DRIFTING) {
+        this.misses++;
+        this.log.event('probe-result', { result: 'miss', misses: this.misses, stateAtProbe: p.state }, t);
+        if (this.misses >= c.missesToConfirm) {
+          const leaveT = this.driftFixStart ?? p.t;
+          this.recordLeave(leaveT, leaveT, t, 'probe-miss');
+          this.setState(S.LEFT, t);
+        }
+      } else {
+        this.log.event('probe-result', { result: 'miss', stateAtProbe: p.state }, t);
       }
     }
   }
@@ -205,36 +218,31 @@ export class AttentionMachine {
   cancelProbe(t, reason) {
     if (!this.pending) return;
     this.pending = null;
-    this.probe.hide();
-    this.logger.event('probe-result', { result: 'cancelled', reason }, t);
+    this.log.event('probe-result', { result: 'cancelled', reason }, t);
   }
 
-  recordLeave(leaveT, t, cause) {
+  // leaveT: 타임코드 값의 기준 시각, posT: 타임코드 위치를 꺼낼 시각
+  recordLeave(leaveT, posT, t, cause) {
     const c = this.cfg;
     const origin = c.timecodeOrigin === 'lastReturn' ? this.lastReturnT ?? this.t0 : this.t0;
     const elapsed = Math.max(0, leaveT - origin);
     const timecode = formatTimecode(elapsed, c.fps);
     this.leaves.push({ t: leaveT, timecode, cause });
-    this.logger.event(
+    this.log.event(
       'leave',
-      {
-        cause,
-        estimatedLeave: this.logger.stamp(leaveT),
-        timecode,
-        elapsed: +elapsed.toFixed(3),
-        origin: c.timecodeOrigin,
-      },
+      { cause, estimatedLeave: this.log.stamp(leaveT), timecode, elapsed: +elapsed.toFixed(3), origin: c.timecodeOrigin },
       t
     );
-    this.timecodes.add(timecode);
+    this.onLeave?.({ leaveT, posT, timecode, cause, elapsed });
   }
 
   enterAway(t) {
     const prev = this.state;
     this.cancelProbe(t, 'away');
     if (this.cfg.countAwayAsLeave && prev !== S.LEFT) {
-      const leaveT = prev === S.DRIFTING && this.driftFixStart != null ? Math.min(this.driftFixStart, this.offSince) : this.offSince;
-      this.recordLeave(leaveT, t, 'away');
+      const offStart = this.offSince;
+      const leaveT = prev === S.DRIFTING && this.driftFixStart != null ? Math.min(this.driftFixStart, offStart) : offStart;
+      this.recordLeave(leaveT, offStart, t, 'away');
     }
     this.setState(S.AWAY, t);
   }
@@ -244,7 +252,37 @@ export class AttentionMachine {
     this.misses = 0;
     this.driftFixStart = null;
     this.processor.breakFixation(t);
-    this.logger.event('return', { cause }, t);
+    this.log.event('return', { cause }, t);
     this.setState(S.RETURNED, t);
+  }
+}
+
+// 전역 프로브 스케줄러: 화면은 하나이므로 프로브도 하나다.
+export class ProbeScheduler {
+  constructor(cfg, probeLayer, logger) {
+    this.cfg = cfg;
+    this.probe = probeLayer;
+    this.logger = logger;
+    this.lastProbeT = -Infinity;
+    this.activeUntil = -Infinity;
+  }
+
+  update(people, t, force = false) {
+    const c = this.cfg;
+    if (t < this.activeUntil) return false;
+    const machines = people.map((p) => p.machine).filter(Boolean);
+    if (!force) {
+      if (t - this.lastProbeT < c.probeCooldown) return false;
+      if (!machines.some((m) => m.wantsProbe(t))) return false;
+    }
+    const eligible = machines.filter((m) => m.isProbeEligible(t));
+    if (!eligible.length) return false;
+    const gazes = eligible.map((m) => m.gazeCentroid(t)).filter(Boolean);
+    const pos = this.probe.show(gazes);
+    this.lastProbeT = t;
+    this.activeUntil = t + c.responseWindow;
+    for (const m of eligible) m.beginProbe(pos, t);
+    this.logger.system('probe', { x: +pos.x.toFixed(3), y: +pos.y.toFixed(3), audience: eligible.length });
+    return true;
   }
 }
