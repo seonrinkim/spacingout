@@ -1,12 +1,15 @@
 import './style.css';
 import { loadConfig } from './config.js';
-import { Tracker, pickLargestFace } from './tracker.js';
-import { SignalProcessor } from './signals.js';
-import { Presence, Calibrator } from './session.js';
-import { AttentionMachine, S } from './attention.js';
+import { Tracker } from './tracker.js';
+import { PeopleTracker } from './people.js';
+import { ProbeScheduler } from './attention.js';
 import { ProbeLayer } from './probe.js';
 import { TimecodeLayer } from './timecode.js';
 import { Logger } from './logger.js';
+import { Counter } from './counter.js';
+import { Silhouette } from './silhouette.js';
+import { PerfManager } from './perf.js';
+import { View } from './view.js';
 import { DebugOverlay } from './debug.js';
 import { setupExhibit, setupBackground } from './exhibit.js';
 
@@ -17,74 +20,74 @@ async function boot() {
   setupBackground(cfg, document.getElementById('bg'));
 
   const logger = new Logger();
+  const counter = new Counter();
+  const view = new View(cfg);
   const probe = new ProbeLayer(document.getElementById('probe-layer'), cfg);
   const timecodes = new TimecodeLayer(document.getElementById('timecode-layer'), cfg);
-  const processor = new SignalProcessor(cfg);
-  const presence = new Presence(cfg);
-  const calib = new Calibrator();
-  const machine = new AttentionMachine(cfg, { probe, timecodes, logger, processor });
+  const silhouette = new Silhouette(document.getElementById('silhouette'), cfg);
+  const perf = new PerfManager(cfg);
   const tracker = new Tracker(cfg, document.getElementById('cam'), logger);
+  const scheduler = new ProbeScheduler(cfg, probe, logger);
+
+  const people = new PeopleTracker(cfg, {
+    counter,
+    logger,
+    view,
+    // 이탈: 그 시점의 눈 중앙 자리에 타임코드를 고정한다
+    onLeave(p, leave) {
+      const pos = people.eyeAt(p, leave.posT) || { x: 0.5, y: 0.5 };
+      timecodes.add({
+        tc: leave.timecode,
+        x: Math.min(1, Math.max(0, pos.x)),
+        y: Math.min(1, Math.max(0, pos.y)),
+        number: p.number,
+        kind: leave.cause === 'away' ? 'away' : 'drift',
+      });
+    },
+  });
 
   const app = {
     lastFrameT: now(),
     loopErrors: [],
+    lastDet: null,
     forceProbe() {
-      machine.forceProbe(now());
+      scheduler.update(people.confirmed, now(), true);
     },
     resetSession() {
-      const t = now();
-      if (presence.active) endSession(t);
-      presence.reset();
+      people.endAll(now());
     },
   };
 
-  const debug = new DebugOverlay(cfg, { tracker, logger, machine, presence, processor, calib, timecodes, probe, base, app });
-  window.spacingout = { cfg, machine, processor, presence, tracker, logger }; // 콘솔 디버깅용
-
-  function startSession(t) {
-    processor.resetSession(t);
-    calib.reset();
-    logger.startSession(presence.t0, t);
-    machine.start(presence.t0, t);
-  }
-
-  function endSession(t, lastSeen) {
-    machine.end(t);
-    probe.hide();
-    timecodes.clear();
-    logger.endSession(t, lastSeen);
-    processor.resetSession(t);
-  }
+  const debug = new DebugOverlay(cfg, { tracker, logger, people, counter, timecodes, probe, silhouette, perf, view, scheduler, base, app });
+  window.spacingout = { cfg, people, tracker, logger, counter, timecodes, perf, silhouette, view }; // 콘솔 디버깅용
 
   function step() {
     const t = now();
-    const res = tracker.detect(t * 1000);
-    const newFrame = res !== undefined;
+    const t1 = performance.now();
+    const det = tracker.detect(t * 1000, perf.maskMode);
+    const newFrame = det !== undefined;
     // 카메라 프레임이 끊겨도 세션 종료 판정은 계속 돌아가게 한다
     if (!newFrame && t - app.lastFrameT < 0.5) {
-      debug.render(t, null, false);
+      debug.render(t, false);
       return;
     }
     if (newFrame) app.lastFrameT = t;
-    const face = newFrame ? pickLargestFace(res, tracker.aspect) : null;
-    const f = processor.process(face, t);
+    view.update(tracker.aspect);
 
-    const lastSeen = presence.lastSeen;
-    const ev = presence.update(f.face, t);
-    if (ev === 'start') startSession(t);
-    else if (ev === 'end') endSession(t, lastSeen);
+    people.match(newFrame ? det.faces : [], t);
+    people.applyAnalysisLimit(perf.maxAnalyzed);
+    people.step(t, newFrame);
+    scheduler.update(people.confirmed, t);
 
-    if (presence.active) {
-      if (machine.state === S.CALIBRATING) {
-        if (f.valid) calib.push(f);
-        if (t - presence.startedAt >= cfg.calibrationDuration) {
-          processor.setBaseline(calib.finish());
-          machine.finishCalibration(t);
-        }
-      }
-      machine.update(f, t);
+    if (newFrame) {
+      silhouette.render(tracker.video, det, people.confirmed, view, perf.gridScale);
+      app.lastDet = det;
+      perf.update(performance.now() - t1, t);
+      tracker.syncPeople();
+    } else {
+      silhouette.clear();
     }
-    debug.render(t, f, newFrame);
+    debug.render(t, newFrame);
   }
 
   function loop() {

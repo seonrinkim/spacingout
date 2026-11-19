@@ -56,9 +56,45 @@ export const DEFAULTS = {
   blinkWindow: 60,
 
   // 검출 품질
-  minFaceSize: 0.08, // 얼굴 폭 / 영상 폭
+  minFaceSize: 0.06, // 얼굴 폭 / 영상 폭. 이보다 작은 얼굴은 분석하지 않는다
   maxJump: 0.25, // 한 프레임 랜드마크 평균 이동 / 얼굴 폭 (이보다 크면 튐으로 보고 제외)
-  numFaces: 1,
+  // 다중 관객
+  maxPeople: 4,
+  matchDistance: 0.12, // 트랙 매칭 거리 상한(영상 폭 기준)
+  graceTime: 1.0, // 매칭되지 않은 미확정 트랙 유예(초). 확정된 관객은 sessionEnd 까지 이어 붙는다
+  maskMode: 'pose', // 'pose' | 'voronoi'
+  voronoiMaxDistance: 0.35, // voronoi: 얼굴에서 이보다 먼 칸은 아무에게도 배정하지 않는다
+  drawUntracked: false,
+  eyeBufferSeconds: 90, // 눈 중앙 좌표 링버퍼 길이(초)
+  mirror: true,
+  useBaseVideo: false,
+
+  // 숫자 실루엣 (WebGL)
+  silhouette: {
+    enabled: true,
+    gridW: 160,
+    gridH: 90,
+    lumThreshold: 0.18, // 정규화 명도 0~1
+    autoContrast: true, // 사람 영역 명도를 5~95% 백분위로 펼친다
+    alphaMin: 0.12,
+    alphaGamma: 1.3,
+    glyphScale: 1.15, // 칸 높이 대비 글자 크기
+    sizeMin: 0.75,
+    sizeMax: 1.3,
+    jitter: 0.35, // 가로 지터(칸 폭 배수)
+    color: '#ffffff',
+    untrackedColor: '#808080',
+    untrackedAlpha: 0.35,
+    maskThreshold: 0.5,
+    maskInputWidth: 384, // 포즈/세그멘테이션 입력 폭(px)
+    dprMax: 1.5,
+  },
+
+  perf: {
+    auto: true,
+    budgetMs: 26, // 카메라 프레임당 처리 시간 예산
+    level: 0, // auto=false 일 때 고정 단계
+  },
   minFaceDetectionConfidence: 0.6,
   minFacePresenceConfidence: 0.6,
   minTrackingConfidence: 0.6,
@@ -95,18 +131,21 @@ export const DEFAULTS = {
 
   timecode: {
     fadeIn: 1200, // ms
-    fadeOut: 2000, // ms
-    maxVisible: 12,
-    margin: 0.08,
+    drawPaths: true, // 같은 관객의 '멍하니' 타임코드를 순서대로 빨간 선으로 잇는다
+    fadeOld: false,
+    fadeOldCount: 300, // 이 개수만큼 지나면 fadeOldMin 까지 흐려진다
+    fadeOldMin: 0.15,
   },
 
   video: { src: 'assets/base.mp4' },
   model: {
     path: 'models/face_landmarker.task',
+    posePath: 'models/pose_landmarker_lite.task',
+    segPath: 'models/selfie_segmenter.tflite',
     wasm: 'wasm',
     delegate: 'GPU',
   },
-  camera: { width: 640, height: 480, fps: 30, deviceId: '' },
+  camera: { width: 1280, height: 720, fps: 30, deviceId: '' },
   exhibit: {
     autoFullscreen: true,
     frameTimeout: 4, // 이 시간 동안 카메라 프레임이 없으면 재연결
@@ -114,7 +153,7 @@ export const DEFAULTS = {
   },
 };
 
-// 디버그 패널 슬라이더 정의: [경로, min, max, step, 라벨] 또는 [경로, 'bool'|옵션배열, 라벨]
+// 디버그 패널 슬라이더 정의: [경로, min, max, step, 라벨] 또는 [경로, 'bool'|'color'|옵션배열, 라벨]
 export const TUNABLES = [
   ['세션', [
     ['sessionStart', 0.2, 5, 0.1, '시작: 연속 검출(초)'],
@@ -186,16 +225,46 @@ export const TUNABLES = [
     ['blinkOn', 0.2, 0.9, 0.01, '깜빡임 on'],
     ['blinkOff', 0.1, 0.8, 0.01, '깜빡임 off'],
     ['blinkWindow', 10, 120, 5, '분당 횟수 창(초)'],
-    ['minFaceSize', 0.02, 0.5, 0.01, '최소 얼굴 폭'],
+    ['minFaceSize', 0.02, 0.3, 0.005, '최소 얼굴 폭'],
     ['maxJump', 0.02, 1, 0.01, '튐 한계'],
   ]],
   ['타임코드', [
     ['fps', 12, 60, 1, 'fps'],
     ['timecodeOrigin', ['arrival', 'lastReturn'], '기준점'],
     ['timecode.fadeIn', 0, 5000, 100, '페이드인(ms)'],
-    ['timecode.fadeOut', 0, 8000, 100, '페이드아웃(ms)'],
-    ['timecode.maxVisible', 1, 50, 1, '최대 표시 개수'],
-    ['timecode.margin', 0, 0.3, 0.01, '가장자리 여백'],
+    ['timecode.drawPaths', 'bool', '빨간 경로선'],
+    ['timecode.fadeOld', 'bool', '오래된 것 흐리게'],
+    ['timecode.fadeOldCount', 10, 2000, 10, '흐려지는 개수'],
+    ['timecode.fadeOldMin', 0, 1, 0.05, '최소 불투명도'],
+  ]],
+  ['다중 관객', [
+    ['maxPeople', 1, 6, 1, '최대 인원'],
+    ['matchDistance', 0.02, 0.5, 0.01, '트랙 매칭 거리'],
+    ['graceTime', 0.1, 5, 0.1, '유예 시간(초)'],
+    ['maskMode', ['pose', 'voronoi'], '마스크 방식'],
+    ['voronoiMaxDistance', 0.05, 1, 0.05, 'voronoi 최대 거리'],
+    ['drawUntracked', 'bool', '미추적 영역 00000'],
+    ['mirror', 'bool', '거울 반전'],
+  ]],
+  ['숫자 실루엣', [
+    ['silhouette.enabled', 'bool', '실루엣 표시'],
+    ['silhouette.gridW', 40, 320, 8, '격자 가로'],
+    ['silhouette.gridH', 24, 180, 6, '격자 세로'],
+    ['silhouette.lumThreshold', 0, 1, 0.01, '명도 임계'],
+    ['silhouette.autoContrast', 'bool', '자동 대비'],
+    ['silhouette.alphaMin', 0, 1, 0.01, '최소 불투명도'],
+    ['silhouette.alphaGamma', 0.3, 3, 0.05, '감마'],
+    ['silhouette.glyphScale', 0.3, 3, 0.05, '글자 크기'],
+    ['silhouette.sizeMin', 0.2, 1.5, 0.05, '크기 변화 최소'],
+    ['silhouette.sizeMax', 0.5, 3, 0.05, '크기 변화 최대'],
+    ['silhouette.jitter', 0, 2, 0.05, '가로 지터'],
+    ['silhouette.maskThreshold', 0.1, 0.9, 0.05, '마스크 임계'],
+    ['silhouette.color', 'color', '색'],
+  ]],
+  ['성능', [
+    ['perf.auto', 'bool', '자동 단계 조정'],
+    ['perf.budgetMs', 10, 60, 1, '프레임 예산(ms)'],
+    ['perf.level', 0, 8, 1, '고정 단계(auto 끔)'],
   ]],
 ];
 

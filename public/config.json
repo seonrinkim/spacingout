@@ -39,9 +39,41 @@
   "blinkOn": 0.5,
   "blinkOff": 0.35,
   "blinkWindow": 60,
-  "minFaceSize": 0.08,
+  "minFaceSize": 0.06,
   "maxJump": 0.25,
-  "numFaces": 1,
+  "maxPeople": 4,
+  "matchDistance": 0.12,
+  "graceTime": 1,
+  "maskMode": "pose",
+  "voronoiMaxDistance": 0.35,
+  "drawUntracked": false,
+  "eyeBufferSeconds": 90,
+  "mirror": true,
+  "useBaseVideo": false,
+  "silhouette": {
+    "enabled": true,
+    "gridW": 160,
+    "gridH": 90,
+    "lumThreshold": 0.18,
+    "autoContrast": true,
+    "alphaMin": 0.12,
+    "alphaGamma": 1.3,
+    "glyphScale": 1.15,
+    "sizeMin": 0.75,
+    "sizeMax": 1.3,
+    "jitter": 0.35,
+    "color": "#ffffff",
+    "untrackedColor": "#808080",
+    "untrackedAlpha": 0.35,
+    "maskThreshold": 0.5,
+    "maskInputWidth": 384,
+    "dprMax": 1.5
+  },
+  "perf": {
+    "auto": true,
+    "budgetMs": 26,
+    "level": 0
+  },
   "minFaceDetectionConfidence": 0.6,
   "minFacePresenceConfidence": 0.6,
   "minTrackingConfidence": 0.6,
@@ -73,21 +105,24 @@
   },
   "timecode": {
     "fadeIn": 1200,
-    "fadeOut": 2000,
-    "maxVisible": 12,
-    "margin": 0.08
+    "drawPaths": true,
+    "fadeOld": false,
+    "fadeOldCount": 300,
+    "fadeOldMin": 0.15
   },
   "video": {
     "src": "assets/base.mp4"
   },
   "model": {
     "path": "models/face_landmarker.task",
+    "posePath": "models/pose_landmarker_lite.task",
+    "segPath": "models/selfie_segmenter.tflite",
     "wasm": "wasm",
     "delegate": "GPU"
   },
   "camera": {
-    "width": 640,
-    "height": 480,
+    "width": 1280,
+    "height": 720,
     "fps": 30,
     "deviceId": ""
   },
