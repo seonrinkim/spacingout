@@ -39,7 +39,7 @@ npm run build      # dist/ 에 배포용 빌드 (npm run preview 로 확인)
 1. 검은 배경 (`useBaseVideo`일 때만 배경 영상)
 2. 숫자 실루엣 — WebGL2 인스턴싱. 숫자 글리프 아틀라스는 시작할 때 한 번 만든다.
 3. 프로브 — 시선에서 먼 곳에 작은 숫자 몇 개가 약 300ms 깜빡인다.
-4. 타임코드 — 빨간색은 멍하니 바라보다 프로브를 놓친 이탈이다. 같은 관객의 빨간 타임코드는 기록 순서대로 빨간 선으로 잇는다. 흰색은 고개를 돌린(AWAY) 이탈이다.
+4. 타임코드 — 모두 빨간색이다. 관객과 상관없이 모든 타임코드를 기록 순서대로 빨간 선 하나로 잇는다.
 5. 디버그 오버레이
 
 카메라 영상은 기본적으로 거울처럼 좌우 반전된다(`mirror`). 실루엣, 눈 위치, 타임코드, 디버그 표시는 모두 같은 변환(`src/view.js`)을 쓴다.
@@ -76,8 +76,8 @@ npm run build      # dist/ 에 배포용 빌드 (npm run preview 로 확인)
 6. **프로브:** 누군가 DRIFTING이고 전역 쿨다운이 지났으면 프로브 하나를 띄운다. 위치는 모든 관객의 시선에서 가장 먼 곳이다.
    - 반응 창 동안 화면 앞의 모든 관객을 각자 판정한다.
    - 놓쳤을 때 LEFT가 될 수 있는 사람은 DRIFTING이던 관객뿐이다. WATCHING이던 관객은 반응 여부를 로그에만 남긴다.
-7. **LEFT:** 이탈 시각은 그 고정이 시작된 시각으로 소급한다. 타임코드는 그 시각의 눈 중앙 좌표(링버퍼에서 꺼낸 값)에 놓이고 빨간색으로 표시된다.
-8. **AWAY:** 머리가 기준 각도에서 ±25° 넘게 벗어난 채 2초가 지나면 AWAY가 된다. 타임코드는 고개가 벗어나기 시작한 시점의 눈 위치에 흰색으로 놓인다.
+7. **LEFT:** 이탈 시각은 그 고정이 시작된 시각으로 소급한다. 타임코드는 그 시각의 눈 중앙 좌표(링버퍼에서 꺼낸 값)에 놓인다.
+8. **AWAY:** 머리가 기준 각도에서 ±25° 넘게 벗어난 채 2초가 지나면 AWAY가 된다. 타임코드는 고개가 벗어나기 시작한 시점의 눈 위치에 놓인다.
 9. **세션 종료:** 트랙이 5초 이상 사라지면 세션이 끝난다. 타임코드는 지우지 않는다.
 
 ## 숫자 실루엣
@@ -87,8 +87,8 @@ npm run build      # dist/ 에 배포용 빌드 (npm run preview 로 확인)
 - **칸 배정 — `maskMode: "voronoi"`:** 셀피 세그멘테이션 마스크 하나를 쓰고, 마스크 안의 각 칸을 가장 가까운 얼굴 트랙에 배정한다.
 - **미추적 영역:** 어느 트랙에도 연결되지 않은 사람 영역은 그리지 않는다. `drawUntracked`를 켜면 회색 `00000`으로 그린다.
 - **숫자 찍기:** 자동 대비(5~95% 백분위)를 적용한 뒤 명도가 `lumThreshold` 이상인 칸에 관객 번호의 숫자를 순서대로 찍는다.
-  - 밝을수록 진하고 조금 크다.
-  - 칸마다 크기를 조금씩 다르게 하고, 가로 지터를 준다.
+  - 밝을수록 진하다. 글자 크기는 모두 같다(`glyphScale`).
+  - 가로 지터로 가로로 번지는 질감을 낸다.
 
 ## 성능 단계
 
@@ -128,7 +128,7 @@ npm run build      # dist/ 에 배포용 빌드 (npm run preview 로 확인)
 | `eyeBufferSeconds` | 90 | 눈 중앙 좌표 링버퍼 길이 |
 | `mirror` | true | 카메라 좌우 반전 |
 | `useBaseVideo` | false | 배경 영상 사용 |
-| `silhouette.*` | | `gridW/gridH`, `lumThreshold`, `autoContrast`, `alphaMin`, `alphaGamma`, `glyphScale`, `sizeMin/sizeMax`, `jitter`, `color`, `untrackedColor`, `untrackedAlpha`, `maskThreshold`, `maskInputWidth`, `dprMax` |
+| `silhouette.*` | | `gridW/gridH`, `lumThreshold`, `autoContrast`, `alphaMin`, `alphaGamma`, `glyphScale`, `jitter`, `color`, `untrackedColor`, `untrackedAlpha`, `maskThreshold`, `maskInputWidth`, `dprMax` |
 | `perf.*` | | `auto`, `budgetMs`, `level`(auto를 끌 때 고정 단계) |
 | `timecode.*` | | `fadeIn`, `drawPaths`, `fadeOld`(오래된 것부터 흐려짐), `fadeOldCount`, `fadeOldMin` |
 

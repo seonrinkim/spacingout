@@ -13,7 +13,7 @@ export function formatTimecode(sec, fps = 30) {
 }
 
 // entry: { tc, x, y, number, at, kind: 'drift' | 'away' }
-//   drift = 멍하니 바라보다 프로브를 놓친 이탈 → 빨간색, 관객별로 순서대로 선으로 잇는다
+//   모든 타임코드는 빨간색이고, 기록 순서대로 빨간 선 하나로 이어진다. kind 는 기록용.
 export class TimecodeLayer {
   constructor(el, cfg) {
     this.el = el;
@@ -86,23 +86,14 @@ export class TimecodeLayer {
     this.applyFade();
   }
 
-  // 관객별 drift 타임코드를 기록 순서대로 잇는다
+  // 모든 타임코드를 기록 순서대로 하나의 선으로 잇는다
   renderPaths() {
     this.svg.replaceChildren();
-    if (!this.cfg.timecode.drawPaths) return;
-    const byNumber = new Map();
-    for (const e of this.entries) {
-      if (e.kind !== 'drift') continue;
-      if (!byNumber.has(e.number)) byNumber.set(e.number, []);
-      byNumber.get(e.number).push(e);
-    }
-    for (const list of byNumber.values()) {
-      if (list.length < 2) continue;
-      const pl = document.createElementNS(SVG_NS, 'polyline');
-      pl.setAttribute('points', list.map((e) => `${e.x * 100},${e.y * 100}`).join(' '));
-      pl.setAttribute('vector-effect', 'non-scaling-stroke');
-      this.svg.appendChild(pl);
-    }
+    if (!this.cfg.timecode.drawPaths || this.entries.length < 2) return;
+    const pl = document.createElementNS(SVG_NS, 'polyline');
+    pl.setAttribute('points', this.entries.map((e) => `${e.x * 100},${e.y * 100}`).join(' '));
+    pl.setAttribute('vector-effect', 'non-scaling-stroke');
+    this.svg.appendChild(pl);
   }
 
   applyFade() {

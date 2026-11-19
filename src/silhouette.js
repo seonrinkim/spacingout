@@ -295,8 +295,7 @@ export class Silhouette {
         const k = (nl - thr) / Math.max(0.01, 1 - thr);
         const label = o >= 0 ? labels[o] : '00000';
         const digit = label.charCodeAt((i + rowShift) % label.length) - 48;
-        const hv = hash(i, j);
-        const size = ch * s.glyphScale * (s.sizeMin + (s.sizeMax - s.sizeMin) * hv) * (0.85 + 0.3 * k);
+        const size = ch * s.glyphScale; // 모든 숫자는 같은 크기
         const x = (i + 0.5) * cw + (Math.random() - 0.5) * 2 * s.jitter * cw;
         const y = (j + 0.5) * ch + (hash(j, i) - 0.5) * 0.3 * ch;
         let a = s.alphaMin + (1 - s.alphaMin) * Math.pow(k, s.alphaGamma);

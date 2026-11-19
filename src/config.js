@@ -79,8 +79,6 @@ export const DEFAULTS = {
     alphaMin: 0.12,
     alphaGamma: 1.3,
     glyphScale: 1.15, // 칸 높이 대비 글자 크기
-    sizeMin: 0.75,
-    sizeMax: 1.3,
     jitter: 0.35, // 가로 지터(칸 폭 배수)
     color: '#ffffff',
     untrackedColor: '#808080',
@@ -131,7 +129,7 @@ export const DEFAULTS = {
 
   timecode: {
     fadeIn: 1200, // ms
-    drawPaths: true, // 같은 관객의 '멍하니' 타임코드를 순서대로 빨간 선으로 잇는다
+    drawPaths: true, // 모든 타임코드를 기록 순서대로 빨간 선 하나로 잇는다
     fadeOld: false,
     fadeOldCount: 300, // 이 개수만큼 지나면 fadeOldMin 까지 흐려진다
     fadeOldMin: 0.15,
@@ -255,8 +253,6 @@ export const TUNABLES = [
     ['silhouette.alphaMin', 0, 1, 0.01, '최소 불투명도'],
     ['silhouette.alphaGamma', 0.3, 3, 0.05, '감마'],
     ['silhouette.glyphScale', 0.3, 3, 0.05, '글자 크기'],
-    ['silhouette.sizeMin', 0.2, 1.5, 0.05, '크기 변화 최소'],
-    ['silhouette.sizeMax', 0.5, 3, 0.05, '크기 변화 최대'],
     ['silhouette.jitter', 0, 2, 0.05, '가로 지터'],
     ['silhouette.maskThreshold', 0.1, 0.9, 0.05, '마스크 임계'],
     ['silhouette.color', 'color', '색'],
