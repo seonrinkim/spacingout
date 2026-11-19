@@ -6,7 +6,7 @@
 모든 처리는 브라우저 안에서만 한다. 카메라 영상이나 이미지는 저장하거나 전송하지 않는다.
 저장되는 것은 번호, 시간, 좌표, 상태뿐이다.
 
-- **배포 주소:** https://`<사용자>`.github.io/spacingout/ (HTTPS라서 카메라 권한이 동작한다)
+- **배포 주소:** https://seonrinkim.github.io/spacingout/ (HTTPS라서 카메라 권한이 동작한다)
 
 ## 로컬 실행
 
@@ -145,7 +145,7 @@ npm run build      # dist/ 에 배포용 빌드 (npm run preview 로 확인)
 ## 전시 설치
 
 ```bash
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --kiosk --use-fake-ui-for-media-stream --app=https://<사용자>.github.io/spacingout/
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --kiosk --use-fake-ui-for-media-stream --app=https://seonrinkim.github.io/spacingout/
 ```
 
 - 카메라가 끊기거나 4초 넘게 프레임이 없으면 자동으로 재연결한다.
