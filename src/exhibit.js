@@ -6,6 +6,8 @@ export function setupBackground(cfg, video) {
   video.addEventListener('error', () => { video.style.visibility = 'hidden'; });
   video.addEventListener('loadeddata', () => { video.style.visibility = 'visible'; });
   video.style.visibility = 'hidden';
+  if (!cfg.useBaseVideo) return; // 기본은 검은 배경
+  video.preload = 'auto';
   video.src = assetUrl(cfg.video.src);
   const kick = () => { if (video.paused && video.readyState >= 2) video.play().catch(() => {}); };
   video.addEventListener('pause', () => setTimeout(kick, 500));
