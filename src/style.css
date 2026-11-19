@@ -13,7 +13,11 @@
   --tc-letter-spacing: 0.06em;
   --tc-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
   --tc-fade-in: 1200ms; /* config.json timecode.fadeIn 으로 덮어씀 */
-  --tc-fade-out: 2000ms; /* config.json timecode.fadeOut 으로 덮어씀 */
+  --tc-drift-color: #ff2a2a; /* 멍하니 바라보다 놓친 이탈 */
+  --tc-away-color: #fff; /* 고개를 돌린 이탈 */
+  --tc-path-color: #ff2a2a; /* 같은 관객의 '멍하니' 타임코드를 잇는 선 */
+  --tc-path-width: 1px;
+  --tc-path-opacity: 0.75;
 
   /* 프로브 (크기·색·불투명도는 config.json probe.* 로 조정) */
   --probe-font: var(--tc-font);
@@ -42,6 +46,14 @@ body.debug {
   height: 100%;
   object-fit: var(--bg-fit);
   background: var(--bg-color);
+}
+
+#silhouette {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 #probe-layer,
@@ -73,15 +85,35 @@ body.debug {
   text-shadow: var(--tc-shadow);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  transform: translate(-50%, -50%);
   opacity: 0;
   transition: opacity var(--tc-fade-in) ease;
 }
-.tc.show {
-  opacity: var(--tc-opacity);
+.tc-drift {
+  color: var(--tc-drift-color);
 }
-.tc.hide {
-  opacity: 0;
-  transition: opacity var(--tc-fade-out) ease;
+.tc-away {
+  color: var(--tc-away-color);
+}
+.tc.show {
+  opacity: calc(var(--tc-opacity) * var(--tc-age, 1));
+}
+.tc.instant {
+  transition: none;
+}
+.tc-paths {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.tc-paths polyline {
+  fill: none;
+  stroke: var(--tc-path-color);
+  stroke-width: var(--tc-path-width);
+  stroke-opacity: var(--tc-path-opacity);
+  stroke-linejoin: round;
 }
 
 /* 카메라 입력: 화면에 보이지 않게(display:none 이면 일부 브라우저가 프레임을 멈춤) */
@@ -96,23 +128,44 @@ body.debug {
 }
 
 /* ── 디버그 ───────────────────────────────────────────── */
-#gaze-marker,
-#probe-marker {
+#markers > div {
   position: fixed;
+  pointer-events: none;
+  z-index: 5;
+}
+.mk-gaze {
   width: 26px;
   height: 26px;
   margin: -13px 0 0 -13px;
-  border: 1.5px solid rgba(0, 255, 180, 0.8);
+  border: 1.5px solid var(--c);
   border-radius: 50%;
-  pointer-events: none;
-  z-index: 5;
   transition: left 60ms linear, top 60ms linear;
 }
-#gaze-marker.fix {
-  border-color: #ffb300;
-  box-shadow: 0 0 0 4px rgba(255, 179, 0, 0.2);
+.mk-gaze.fix {
+  border-style: dashed;
+  box-shadow: 0 0 0 4px rgba(255, 179, 0, 0.35);
+}
+.mk-eye {
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  background: var(--c);
+  border-radius: 50%;
+}
+.mk-eye::after {
+  content: attr(data-label);
+  position: absolute;
+  left: 10px;
+  top: -4px;
+  font: 10px ui-monospace, Menlo, monospace;
+  color: var(--c);
 }
 #probe-marker {
+  position: fixed;
+  pointer-events: none;
+  z-index: 5;
+  border: 1.5px solid #ff4081;
+  border-radius: 50%;
   border-color: #ff4081;
   border-style: dashed;
   width: 40px;
@@ -145,7 +198,7 @@ body.debug {
 }
 .dbg-left {
   left: 8px;
-  width: 340px;
+  width: 344px;
 }
 .dbg-right {
   right: 8px;
@@ -155,11 +208,37 @@ body.debug {
   color: #fff;
   margin-bottom: 6px;
 }
-.dbg-cam {
+.dbg-cam,
+.dbg-mask {
   width: 320px;
-  height: 240px;
+  height: 180px;
   background: #000;
   display: block;
+  margin-bottom: 4px;
+}
+.dbg-person {
+  border-left: 4px solid var(--c);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 3px 6px;
+  margin: 4px 0;
+  cursor: pointer;
+  box-shadow: inset -4px 0 0 var(--s);
+}
+.dbg-person.sel {
+  background: rgba(255, 255, 255, 0.1);
+}
+.dbg-person b {
+  color: var(--c);
+  font-weight: 600;
+}
+.dbg-empty {
+  color: #666;
+}
+.dbg-buttons button.danger {
+  border-color: #844;
+}
+.dbg-buttons button[data-armed] {
+  background: #822;
 }
 .dbg-status {
   margin: 6px 0;

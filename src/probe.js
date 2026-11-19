@@ -8,17 +8,22 @@ export class ProbeLayer {
     this.last = null;
   }
 
-  pickPosition(gaze) {
+  // 모든 관객의 추정 시선에서 최대한 먼 곳
+  pickPosition(gazes) {
     const c = this.cfg.probe;
     const W = innerWidth, H = innerHeight, ar = W / H;
-    const gx = Math.min(1, Math.max(0, gaze.x)), gy = Math.min(1, Math.max(0, gaze.y));
+    const gs = (gazes.length ? gazes : [{ x: 0.5, y: 0.5 }]).map((g) => ({
+      x: Math.min(1, Math.max(0, g.x)),
+      y: Math.min(1, Math.max(0, g.y)),
+    }));
     const cand = [];
     const cols = 9, rows = 5;
     for (let i = 0; i < cols; i++) {
       for (let j = 0; j < rows; j++) {
         const x = c.margin + ((1 - 2 * c.margin) * (i + 0.5)) / cols + (Math.random() - 0.5) * 0.04;
         const y = c.margin + ((1 - 2 * c.margin) * (j + 0.5)) / rows + (Math.random() - 0.5) * 0.04;
-        const d = Math.hypot((x - gx) * ar, y - gy); // 화면 높이 단위 거리
+        let d = Infinity; // 화면 높이 단위, 가장 가까운 시선까지 거리
+        for (const g of gs) d = Math.min(d, Math.hypot((x - g.x) * ar, y - g.y));
         cand.push({ x, y, d });
       }
     }
@@ -29,10 +34,10 @@ export class ProbeLayer {
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
-  show(gaze) {
+  show(gazes) {
     this.hide();
     const c = this.cfg.probe;
-    const pos = this.pickPosition(gaze);
+    const pos = this.pickPosition(Array.isArray(gazes) ? gazes : [gazes]);
     const n = document.createElement('div');
     n.className = `probe probe-${c.type}`;
     n.style.left = `${pos.x * 100}%`;
