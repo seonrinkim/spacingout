@@ -111,12 +111,20 @@ body.debug {
 /* 카메라 입력: 화면에 보이지 않게(display:none 이면 일부 브라우저가 프레임을 멈춤) */
 #cam {
   position: fixed;
-  left: 0;
-  top: 0;
+  left: -10px;
+  top: -10px;
   width: 2px;
   height: 2px;
   opacity: 0;
   pointer-events: none;
+}
+
+/* Safari 가 영상 위에 그리는 재생 버튼/컨트롤을 숨긴다 */
+video::-webkit-media-controls,
+video::-webkit-media-controls-start-playback-button,
+video::-webkit-media-controls-overlay-play-button {
+  display: none !important;
+  -webkit-appearance: none;
 }
 
 /* ── 디버그 ───────────────────────────────────────────── */

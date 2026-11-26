@@ -6,7 +6,11 @@ export function setupBackground(cfg, video) {
   video.addEventListener('error', () => { video.style.visibility = 'hidden'; });
   video.addEventListener('loadeddata', () => { video.style.visibility = 'visible'; });
   video.style.visibility = 'hidden';
-  if (!cfg.useBaseVideo) return; // 기본은 검은 배경
+  if (!cfg.useBaseVideo) {
+    // 기본은 검은 배경. 빈 <video> 가 남아 있으면 Safari 가 가운데에 재생 버튼 원을 그리므로 아예 뺀다.
+    video.remove();
+    return;
+  }
   video.preload = 'auto';
   video.src = assetUrl(cfg.video.src);
   const kick = () => { if (video.paused && video.readyState >= 2) video.play().catch(() => {}); };
