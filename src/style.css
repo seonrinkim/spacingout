@@ -61,6 +61,40 @@ body.debug {
   pointer-events: none;
 }
 
+#subtitle-layer {
+  position: fixed;
+  top: var(--sub-top, 5vh);
+  right: var(--sub-right, 5vw);
+  max-width: var(--sub-max-width, 35vw);
+  pointer-events: none;
+  text-align: right;
+}
+.sub-line {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: max-content;
+  max-width: var(--sub-max-width, 35vw);
+  font-family: var(--tc-font);
+  font-size: var(--sub-size, 1.8vh);
+  line-height: 1.45;
+  letter-spacing: 0.02em;
+  color: #fff;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.45);
+  overflow-wrap: break-word;
+  opacity: 0;
+  transition: opacity var(--sub-fade, 400ms) ease;
+}
+.sub-line.show {
+  opacity: var(--sub-opacity, 0.92);
+}
+.sub-line.sub-source {
+  font-size: calc(var(--sub-size, 1.8vh) * var(--sub-source-scale, 0.82));
+}
+.sub-line.sub-source.show {
+  opacity: calc(var(--sub-opacity, 0.92) * var(--sub-source-opacity, 0.55));
+}
+
 .probe {
   position: absolute;
   transform: translate(-50%, -50%);

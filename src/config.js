@@ -135,6 +135,21 @@ export const DEFAULTS = {
     fadeOldMin: 0.15,
   },
 
+  // 이탈 후 자막 (public/subtitles.json). 시간 단위 ms, 위치/너비는 화면 폭·높이 비율
+  subtitleEnabled: true,
+  subtitleMsPerChar: 70, // 줄 표시 시간 = 글자 수 × 이 값
+  subtitleMinMs: 3000, // 줄 최소 표시 시간
+  subtitleGapMs: 800, // 줄 사이 간격
+  subtitleFadeMs: 400, // 페이드인/아웃
+  subtitleStartDelayMs: 1500, // 첫 타임코드 뒤 첫 줄까지
+  subtitleMarginRight: 0.05,
+  subtitleMarginTop: 0.05,
+  subtitleMaxWidth: 0.35,
+  subtitleFontSize: 1.8, // 화면 높이의 %
+  subtitleOpacity: 0.92,
+  subtitleSourceScale: 0.82, // 출처 줄 크기 배수
+  subtitleSourceOpacity: 0.55, // 출처 줄 불투명도 배수
+
   video: { src: 'assets/base.mp4' },
   model: {
     path: 'models/face_landmarker.task',
@@ -234,6 +249,21 @@ export const TUNABLES = [
     ['timecode.fadeOld', 'bool', '오래된 것 흐리게'],
     ['timecode.fadeOldCount', 10, 2000, 10, '흐려지는 개수'],
     ['timecode.fadeOldMin', 0, 1, 0.05, '최소 불투명도'],
+  ]],
+  ['자막', [
+    ['subtitleEnabled', 'bool', '자막 사용'],
+    ['subtitleStartDelayMs', 0, 6000, 100, '시작 지연(ms)'],
+    ['subtitleMsPerChar', 20, 200, 5, '글자당(ms)'],
+    ['subtitleMinMs', 500, 8000, 100, '최소 표시(ms)'],
+    ['subtitleGapMs', 0, 4000, 100, '줄 간격(ms)'],
+    ['subtitleFadeMs', 0, 2000, 50, '페이드(ms)'],
+    ['subtitleMarginRight', 0, 0.3, 0.005, '오른쪽 여백'],
+    ['subtitleMarginTop', 0, 0.5, 0.005, '위 여백'],
+    ['subtitleMaxWidth', 0.15, 0.9, 0.01, '최대 너비'],
+    ['subtitleFontSize', 0.8, 5, 0.05, '글자 크기(vh)'],
+    ['subtitleOpacity', 0.1, 1, 0.01, '불투명도'],
+    ['subtitleSourceScale', 0.5, 1, 0.01, '출처 크기 배수'],
+    ['subtitleSourceOpacity', 0.1, 1, 0.01, '출처 불투명도 배수'],
   ]],
   ['다중 관객', [
     ['maxPeople', 1, 6, 1, '최대 인원'],

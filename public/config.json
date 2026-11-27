@@ -108,6 +108,19 @@
     "fadeOldCount": 300,
     "fadeOldMin": 0.15
   },
+  "subtitleEnabled": true,
+  "subtitleMsPerChar": 70,
+  "subtitleMinMs": 3000,
+  "subtitleGapMs": 800,
+  "subtitleFadeMs": 400,
+  "subtitleStartDelayMs": 1500,
+  "subtitleMarginRight": 0.05,
+  "subtitleMarginTop": 0.05,
+  "subtitleMaxWidth": 0.35,
+  "subtitleFontSize": 1.8,
+  "subtitleOpacity": 0.92,
+  "subtitleSourceScale": 0.82,
+  "subtitleSourceOpacity": 0.55,
   "video": {
     "src": "assets/base.mp4"
   },

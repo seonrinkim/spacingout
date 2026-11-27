@@ -59,7 +59,7 @@ export class Person {
 }
 
 export class PeopleTracker {
-  // deps: { counter, logger, view, onLeave(person, leave) }
+  // deps: { counter, logger, view, onLeave(person, leave), onSessionStart?(person), onSessionEnd?(person) }
   constructor(cfg, deps) {
     this.cfg = cfg;
     Object.assign(this, deps);
@@ -188,12 +188,14 @@ export class PeopleTracker {
       onLeave: (leave) => this.onLeave(p, leave),
     });
     p.machine.start(p.t0, t);
+    this.onSessionStart?.(p);
   }
 
   endSession(p, t) {
     p.machine?.end(t);
     p.log?.end(t, p.lastSeen);
     this.people = this.people.filter((q) => q !== p);
+    this.onSessionEnd?.(p);
   }
 
   endAll(t) {

@@ -40,7 +40,8 @@ npm run build      # dist/ 에 배포용 빌드 (npm run preview 로 확인)
 2. 숫자 실루엣 — WebGL2 인스턴싱. 숫자 글리프 아틀라스는 시작할 때 한 번 만든다.
 3. 프로브 — 시선에서 먼 곳에 작은 숫자 몇 개가 약 300ms 깜빡인다.
 4. 타임코드 — 모두 빨간색이다. 관객과 상관없이 모든 타임코드를 기록 순서대로 빨간 선 하나로 잇는다.
-5. 디버그 오버레이
+5. 자막 — 첫 이탈 뒤 화면 우측 상단에 한 줄씩 나타난다 (아래 "이탈 후 자막")
+6. 디버그 오버레이
 
 카메라 영상은 기본적으로 거울처럼 좌우 반전된다(`mirror`). 실루엣, 눈 위치, 타임코드, 디버그 표시는 모두 같은 변환(`src/view.js`)을 쓴다.
 
@@ -54,6 +55,8 @@ npm run build      # dist/ 에 배포용 빌드 (npm run preview 로 확인)
 | `src/session.js` | 관객별 캘리브레이션 기준값 |
 | `src/attention.js` | 관객별 상태 머신과 전역 프로브 스케줄러 |
 | `src/silhouette.js` | 격자 다운샘플, 칸별 주인(관객) 배정, 숫자 실루엣 WebGL 렌더링 |
+| `src/subtitle.js` | 이탈 후 자막 재생·리셋 |
+| `public/subtitles.json` | 자막 문장 목록 |
 | `src/timecode.js` | 타임코드 형식, 표시, 빨간 경로선, localStorage 누적 |
 | `src/counter.js` | 관객 번호 카운터 (localStorage) |
 | `src/perf.js` | 성능 단계 자동 조정 |
@@ -109,6 +112,36 @@ npm run build      # dist/ 에 배포용 빌드 (npm run preview 로 확인)
 - 디버그 오버레이에서 **JSON 백업**, **JSON 복원**, **번호·타임코드 초기화**를 쓸 수 있다. 초기화는 두 번 눌러야 실행된다.
 - localStorage는 브라우저·주소별로 따로다. 전시용 컴퓨터를 옮기기 전에 백업을 받아 둔다.
 
+## 이탈 후 자막
+
+- 화면 앞의 관객 중 누군가가 처음 이탈해 첫 타임코드가 찍히면, `subtitleStartDelayMs` 뒤에 자막이 한 줄씩 나타났다 사라진다.
+- 자막은 판정과 독립된 타이머로만 돈다. 재생 중에도 측정, 상태 머신, 프로브, 타임코드 기록은 평소대로 계속된다. 재생 중이나 완료 뒤의 이탈은 자막에 영향을 주지 않는다.
+- 마지막 줄(출처)까지 나오면 끝나고, 리셋될 때까지 다시 나오지 않는다.
+- **리셋**: 새 관객(새 관객 번호)의 세션이 시작되거나, 모든 세션이 끝나 화면 앞에 아무도 없을 때. 보이던 줄은 짧게 페이드아웃되고 재생은 처음으로 돌아간다. 다음 첫 이탈 때 첫 줄부터 다시 나온다.
+- 타임코드와 관객 번호는 자막 리셋과 무관하게 계속 누적된다.
+- 위치: 화면 우측 상단, 오른쪽 정렬, 배경 박스 없음. 한 줄이 `subtitleMaxWidth`를 넘으면 줄바꿈하고, 2줄을 넘으면 글자 크기를 조금씩(최소 60%) 줄여 2줄에 맞춘다. 출처 줄은 작고 흐리게 나온다.
+- 각 줄의 표시 시간 = 글자 수 × `subtitleMsPerChar` (최소 `subtitleMinMs`). 앞뒤로 `subtitleFadeMs` 페이드, 줄 사이에 `subtitleGapMs` 간격.
+
+### 문장 바꾸기
+
+`public/subtitles.json`은 문자열 배열이다. 한 항목이 화면의 한 자막이고, 배열의 마지막 항목이 출처 줄로 표시된다. JSON 안의 큰따옴표는 `\"`로 쓴다.
+
+```json
+[
+  "\"When someone is searching,\" said Siddhartha,",
+  "...",
+  "Hermann Hesse, 《Siddhartha》"
+]
+```
+
+파일은 시작할 때 한 번 읽는다. 바꾼 뒤 페이지를 새로 고치면 된다 (배포본은 push 후 Pages 재배포).
+
+### 디버그
+
+- 상태 줄 `자막`: 대기 / 시작 지연 중 / 재생 중 (n/8) / 완료
+- **자막 시작**(어떤 상태든 처음부터), **자막 리셋** 버튼
+- 슬라이더 그룹 "자막": 위치, 너비, 글자 크기, 불투명도, 타이밍
+
 ## 설정 (`public/config.json`)
 
 디버그 슬라이더로 바꾼 값은 localStorage에 저장되고 `config.json`보다 우선한다.
@@ -131,6 +164,24 @@ npm run build      # dist/ 에 배포용 빌드 (npm run preview 로 확인)
 | `silhouette.*` | | `gridW/gridH`, `lumThreshold`, `autoContrast`, `alphaMin`, `alphaGamma`, `glyphScale`, `jitter`, `color`, `untrackedColor`, `untrackedAlpha`, `maskThreshold`, `maskInputWidth`, `dprMax` |
 | `perf.*` | | `auto`, `budgetMs`, `level`(auto를 끌 때 고정 단계) |
 | `timecode.*` | | `fadeIn`, `drawPaths`, `fadeOld`(오래된 것부터 흐려짐), `fadeOldCount`, `fadeOldMin` |
+
+자막 설정 (시간은 ms, 여백·너비는 화면 폭/높이 비율):
+
+| 키 | 기본 | 설명 |
+|---|---|---|
+| `subtitleEnabled` | true | 자막 사용 |
+| `subtitleStartDelayMs` | 1500 | 첫 타임코드 뒤 첫 줄까지 지연 |
+| `subtitleMsPerChar` | 70 | 줄 표시 시간 = 글자 수 × 이 값 |
+| `subtitleMinMs` | 3000 | 줄 최소 표시 시간 |
+| `subtitleGapMs` | 800 | 줄 사이 간격 |
+| `subtitleFadeMs` | 400 | 줄 페이드인/아웃 (리셋 페이드아웃도 같은 값) |
+| `subtitleMarginRight` | 0.05 | 오른쪽 여백 (화면 폭 비율) |
+| `subtitleMarginTop` | 0.05 | 위 여백 (화면 높이 비율) |
+| `subtitleMaxWidth` | 0.35 | 최대 너비 (화면 폭 비율) |
+| `subtitleFontSize` | 1.8 | 글자 크기 (화면 높이의 %) |
+| `subtitleOpacity` | 0.92 | 불투명도 |
+| `subtitleSourceScale` | 0.82 | 출처 줄 크기 배수 |
+| `subtitleSourceOpacity` | 0.55 | 출처 줄 불투명도 배수 |
 
 타임코드와 경로선의 색·크기·글꼴은 `src/style.css`의 `--tc-*` 변수로 바꾼다.
 

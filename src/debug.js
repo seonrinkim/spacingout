@@ -51,7 +51,7 @@ function armable(btn, label, action) {
 export class DebugOverlay {
   constructor(cfg, deps) {
     this.cfg = cfg;
-    Object.assign(this, deps); // tracker, logger, people, counter, timecodes, probe, silhouette, perf, view, scheduler, base, app
+    Object.assign(this, deps); // tracker, logger, people, counter, timecodes, subtitles, probe, silhouette, perf, view, scheduler, base, app
     this.root = document.getElementById('debug');
     this.markers = document.getElementById('markers');
     this.probeMarker = document.getElementById('probe-marker');
@@ -99,6 +99,11 @@ export class DebugOverlay {
           <button data-act="wipe" class="danger"></button>
           <input type="file" accept="application/json,.json" hidden />
         </div>
+        <div class="dbg-sub">자막</div>
+        <div class="dbg-buttons">
+          <button data-act="sub-start">자막 시작</button>
+          <button data-act="sub-reset">자막 리셋</button>
+        </div>
         <div class="dbg-tunables"></div>
       </div>`;
     this.cam = this.root.querySelector('.dbg-cam');
@@ -136,6 +141,8 @@ export class DebugOverlay {
       if (act === 'probe') this.app.forceProbe();
       if (act === 'session') this.app.resetSession();
       if (act === 'backup') this.backup();
+      if (act === 'sub-start') this.subtitles.forceStart();
+      if (act === 'sub-reset') this.subtitles.reset();
       if (act === 'restore') this.fileInput.click();
       const pid = e.target?.closest?.('.dbg-person')?.dataset?.id;
       if (pid) this.selectedId = +pid;
@@ -229,12 +236,14 @@ export class DebugOverlay {
     setPath(this.cfg, path, v);
     saveOverride(path, v);
     if (path.startsWith('timecode.')) this.timecodes.refresh();
+    if (path.startsWith('subtitle')) this.subtitles.applyVars();
   }
 
   resetConfig() {
     clearOverrides();
     for (const k of Object.keys(this.base)) this.cfg[k] = structuredClone(this.base[k]);
     this.timecodes.refresh();
+    this.subtitles.applyVars();
     this.refreshTunables();
   }
 
@@ -409,6 +418,7 @@ export class DebugOverlay {
       `관객     트랙 ${this.people.people.length}  세션 ${this.people.confirmed.length}  (최대 ${c.maxPeople})`,
       `프로브   전역 쿨다운 ${fmt(cool, 1)}s`,
       `누적     관객 번호 ${String(this.counter.value).padStart(5, '0')}  타임코드 ${this.timecodes.entries.length}개`,
+      `자막     ${this.subtitles.label}`,
     ];
     this.statusEl.textContent = lines.join('\n');
   }

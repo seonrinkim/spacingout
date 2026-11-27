@@ -5,6 +5,7 @@ import { PeopleTracker } from './people.js';
 import { ProbeScheduler } from './attention.js';
 import { ProbeLayer } from './probe.js';
 import { TimecodeLayer } from './timecode.js';
+import { SubtitleLayer } from './subtitle.js';
 import { Logger } from './logger.js';
 import { Counter } from './counter.js';
 import { Silhouette } from './silhouette.js';
@@ -24,6 +25,8 @@ async function boot() {
   const view = new View(cfg);
   const probe = new ProbeLayer(document.getElementById('probe-layer'), cfg);
   const timecodes = new TimecodeLayer(document.getElementById('timecode-layer'), cfg);
+  const subtitles = new SubtitleLayer(document.getElementById('subtitle-layer'), cfg, logger);
+  await subtitles.load();
   const silhouette = new Silhouette(document.getElementById('silhouette'), cfg);
   const perf = new PerfManager(cfg);
   const tracker = new Tracker(cfg, document.getElementById('cam'), logger);
@@ -43,6 +46,15 @@ async function boot() {
         number: p.number,
         kind: leave.cause === 'away' ? 'away' : 'drift',
       });
+      subtitles.trigger(); // 첫 이탈일 때만 시작한다(재생 중/완료면 무시)
+    },
+    // 새 관객이 들어오면 자막을 지우고 처음으로
+    onSessionStart() {
+      subtitles.reset();
+    },
+    // 화면 앞에 아무도 없으면 리셋
+    onSessionEnd() {
+      if (people.confirmed.length === 0) subtitles.reset();
     },
   });
 
@@ -58,8 +70,8 @@ async function boot() {
     },
   };
 
-  const debug = new DebugOverlay(cfg, { tracker, logger, people, counter, timecodes, probe, silhouette, perf, view, scheduler, base, app });
-  window.spacingout = { cfg, people, tracker, logger, counter, timecodes, perf, silhouette, view }; // 콘솔 디버깅용
+  const debug = new DebugOverlay(cfg, { tracker, logger, people, counter, timecodes, subtitles, probe, silhouette, perf, view, scheduler, base, app });
+  window.spacingout = { cfg, people, tracker, logger, counter, timecodes, subtitles, perf, silhouette, view }; // 콘솔 디버깅용
 
   function step() {
     const t = now();
